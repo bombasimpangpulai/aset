@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistem Rekod Aset - BBP Simpang Pulai</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <!-- Flatpickr (Kalendar dd/mm/yyyy) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Public Sans', sans-serif;
+      background-color: #f8fafc;
+    }
+
+    /* ================= PENGASINGAN MUTLAK CETAKAN ================= */
+    @media screen {
+      #printReportSection, #printKewpa9OfficialSection {
+        display: none !important;
+      }
+    }
+
+    @media print {
+      /* Padam semua elemen skrin biasa */
+      header, footer, main, #assetModal, #pdfModal, #kewpa9Modal, .no-print {
+        display: none !important;
+      }
+
+      /* 1. CETAKAN KHAS KEW.PA-9 (A4 PORTRAIT RASMI AM 2.4 LAMPIRAN A) */
+      body.printing-kewpa9 {
+        background: #ffffff !important;
+      }
+      body.printing-kewpa9 @page {
+        size: A4 portrait;
+        margin: 14mm 15mm 12mm 15mm;
+      }
+      body.printing-kewpa9 #printKewpa9OfficialSection {
+        display: block !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        box-sizing: border-box !important;
+        font-family: Arial, Helvetica, sans-serif !important;
+      }
+      body.printing-kewpa9 #printReportSection {
+        display: none !important;
+      }
+
+      /* 2. CETAKAN KHAS LAPORAN BULANAN (A4 LANDSCAPE) */
+      body.printing-report {
+        background: #ffffff !important;
+      }
+      body.printing-report @page {
+        size: A4 landscape;
+        margin: 10mm 10mm 10mm 10mm;
+      }
+      body.printing-report #printReportSection {
+        display: block !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      body.printing-report #printKewpa9OfficialSection {
+        display: none !important;
+      }
+
+      thead {
+        display: table-header-group !important;
+      }
+      tr {
+        page-break-inside: avoid !important;
+      }
+    }
+  </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+  <!-- ================= HEADER UTAMA RASMI ================= -->
+  <header class="bg-slate-900 border-b-4 border-red-600 text-white shadow-lg sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex flex-col md:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-4">
+        <!-- Logo Bomba Utama -->
+        <img id="main-header-logo" src="https://img.ge/i/ZYAk730.png" alt="Logo" width="60" height="30">
+        
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="bg-red-600 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded tracking-wider uppercase">USER</span>
+            <span class="text-[11px] text-slate-300 font-medium tracking-wide">PENGURUSAN ASET KERAJAAN</span>
+          </div>
+          <h1 class="text-sm md:text-lg font-bold tracking-tight text-white">
+            BALAI BOMBA DAN PENYELAMAT SIMPANG PULAI
+          </h1>
+          <p class="text-[10px] text-slate-400">Jabatan Bomba dan Penyelamat Malaysia Negeri Perak</p>
+        </div>
+      </div>
+
+      <!-- Butang Tindakan Header -->
+      <div class="flex items-center flex-wrap gap-2">
+        <a 
+          href="https://sppakpkt1.treasury.gov.my/portalspa/login.cfm" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow hover:shadow-md border border-amber-300"
+          title="Buka Portal Sistem Pengurusan Aset (SPPA)"
+        >
+          <i class="fa-solid fa-right-to-bracket text-slate-900"></i>
+          <span>Portal SPPA</span>
+        </a>
+
+        <button onclick="openKewpa9Modal()" class="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow hover:shadow-md" title="Isi Borang Permohonan Pinjaman Peralatan">
+          <i class="fa-solid fa-hand-holding-hand text-amber-200"></i>
+          <span>KEW.PA-9 (Pinjaman)</span>
+        </button>
+
+        <button onclick="fetchAssetData()" id="btnSync" class="px-3 py-1.5 bg-blue-800 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow" title="Segerak dengan Google Sheets">
+          <i class="fa-solid fa-rotate"></i>
+          <span>Kemaskini</span>
+        </button>
+        <button onclick="openPdfModal()" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow">
+          <i class="fa-solid fa-file-pdf"></i>
+          <span>Jana Laporan</span>
+        </button>
+        <button onclick="openAssetModal('add')" disabled class="px-3.5 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg cursor-not-allowed text-xs font-bold flex items-center gap-1.5 transition shadow-md">
+          <i class="fa-solid fa-plus"></i>
+          <span>Daftar Aset Baru</span>
+        </button>
+        
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= KANDUNGAN UTAMA ================= -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex-grow w-full">
+    
+    <!-- KAD STATISTIK -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-4">
+      <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Jumlah Aset</p>
+        <h3 id="statTotal" class="text-xl font-black text-slate-800 mt-0.5">0</h3>
+      </div>
+      <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+        <p class="text-[10px] font-semibold text-blue-600 uppercase tracking-wide truncate">Alih (Harta Modal)</p>
+        <h3 id="statAlihModal" class="text-xl font-black text-blue-700 mt-0.5">0</h3>
+      </div>
+      <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+        <p class="text-[10px] font-semibold text-amber-600 uppercase tracking-wide truncate">Harta Modal (ABR)</p>
+        <h3 id="statModalABR" class="text-xl font-black text-amber-700 mt-0.5">0</h3>
+      </div>
+      <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+        <p class="text-[10px] font-semibold text-purple-600 uppercase tracking-wide truncate">Aset Tak Alih</p>
+        <h3 id="statTakAlih" class="text-xl font-black text-purple-700 mt-0.5">0</h3>
+      </div>
+      <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+        <p class="text-[10px] font-semibold text-teal-600 uppercase tracking-wide truncate">Aksesori</p>
+        <h3 id="statAksesori" class="text-xl font-black text-teal-700 mt-0.5">0</h3>
+      </div>
+      <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Jumlah Nilai</p>
+        <h3 id="statNilai" class="text-sm font-black text-slate-800 mt-1 truncate">RM 0.00</h3>
+      </div>
+    </div>
+
+    <!-- PENCARIAN & PENAPIS -->
+    <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 mb-4 flex flex-col lg:flex-row gap-2.5 justify-between items-center">
+      <div class="relative w-full lg:w-80">
+        <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-slate-400">
+          <i class="fa-solid fa-magnifying-glass text-xs"></i>
+        </span>
+        <input 
+          type="text" 
+          id="searchInput" 
+          oninput="renderTable()" 
+          placeholder="Cari Nama, No Aset, Pembekal..." 
+          class="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-red-500 focus:outline-none transition"
+        />
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full lg:w-auto">
+        <select id="filterJenis" onchange="renderTable()" class="text-xs bg-slate-50 border border-slate-300 text-slate-700 rounded-lg p-1.5 focus:ring-red-500 focus:border-red-500">
+          <option value="">Semua Jenis Aset</option>
+          <option value="Aset Alih (Harta Modal)">Aset Alih (Harta Modal)</option>
+          <option value="Harta Modal (ABR)">Harta Modal (ABR)</option>
+          <option value="Aset tak Alih">Aset tak Alih</option>
+          <option value="Aksesori">Aksesori</option>
+        </select>
+
+        <select id="filterKegunaan" onchange="renderTable()" class="text-xs bg-slate-50 border border-slate-300 text-slate-700 rounded-lg p-1.5 focus:ring-red-500 focus:border-red-500">
+          <option value="">Semua Kegunaan</option>
+          <option value="Pengurusan">Pengurusan</option>
+          <option value="Operasi">Operasi</option>
+          <option value="Stor Utiliti">Stor Utiliti</option>
+        </select>
+
+        <select id="filterStatus" onchange="renderTable()" class="text-xs bg-slate-50 border border-slate-300 text-slate-700 rounded-lg p-1.5 focus:ring-red-500 focus:border-red-500 col-span-2 sm:col-span-1">
+          <option value="">Semua Status</option>
+          <option value="Baik">Baik</option>
+          <option value="Rosak">Rosak</option>
+          <option value="Dipinjamkan">Dipinjamkan</option>
+          <option value="Dipindahkan">Dipindahkan</option>
+          <option value="Dilupuskan">Dilupuskan</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- JADUAL ASET UTAMA -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+        <div>
+          <h2 class="font-bold text-slate-800 text-xs md:text-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-boxes-stacked text-red-600"></i>
+            Daftar Aset Balai Bomba dan Penyelamat Simpang Pulai
+          </h2>
+          <p class="text-[10px] text-slate-500">Senarai rekod aset dan pengeluar / pembekal sah</p>
+        </div>
+        <span id="dataCount" class="text-[10px] font-semibold px-2 py-0.5 bg-slate-200 text-slate-700 rounded-full">0 Rekod</span>
+      </div>
+
+      <div class="w-full overflow-x-auto">
+        <table class="w-full text-left text-[11px] table-fixed border-collapse">
+          <thead class="bg-slate-900 text-white uppercase text-[10px] tracking-wider">
+            <tr>
+              <th class="py-2.5 px-2 text-center" style="width: 4%;">Bil</th>
+              <th class="py-2.5 px-2" style="width: 15%;">Jenis Aset</th>
+              <th class="py-2.5 px-2 font-bold text-amber-300" style="width: 17%;">Nama Aset</th>
+              <th class="py-2.5 px-2" style="width: 10%;">Kegunaan</th>
+              <th class="py-2.5 px-2 font-semibold" style="width: 14%;">No Aset</th>
+              <th class="py-2.5 px-2 font-bold text-emerald-400" style="width: 14%;">Pembekal</th>
+              <th class="py-2.5 px-2 text-center font-bold text-amber-300" style="width: 9%;">Tarikh</th>
+              <th class="py-2.5 px-2 text-right" style="width: 8%;">Nilai (RM)</th>
+              <th class="py-2.5 px-2 text-center" style="width: 8%;">Status</th>
+              <th class="py-2.5 px-2 text-center" style="width: 10%;">Tindakan</th>
+            </tr>
+          </thead>
+          <tbody id="assetTableBody" class="divide-y divide-slate-100 font-medium text-slate-700">
+            <tr>
+              <td colspan="10" class="text-center py-8 text-slate-400">
+                <i class="fa-solid fa-spinner fa-spin text-xl mb-1.5 text-red-600 block"></i>
+                Memuatkan data aset...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- ================= MODAL: BORANG DIGITAL KEW.PA-9 ================= -->
+  <div id="kewpa9Modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden my-6 animate-fadeIn">
+      <div class="bg-slate-900 text-white px-5 py-3 flex items-center justify-between border-b-2 border-orange-500">
+        <div>
+          <h3 class="font-bold text-sm flex items-center gap-2 text-orange-400">
+            <i class="fa-solid fa-hand-holding-hand"></i>
+            BORANG PERMOHONAN PERGERAKAN / PINJAMAN ASET ALIH (KEW.PA-9)
+          </h3>
+          <p class="text-[10px] text-slate-300">Pekeliling Perbendaharaan Malaysia AM 2.4 Lampiran A</p>
+        </div>
+        <button onclick="closeKewpa9Modal()" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form id="kewpa9Form" onsubmit="handleKewpa9Submit(event)" class="p-5 space-y-4 text-xs">
+        
+        <!-- No Permohonan -->
+        <div class="flex justify-between items-center bg-orange-50 p-2.5 rounded-lg border border-orange-200">
+          <span class="font-bold text-orange-950 text-xs">No. Permohonan:</span>
+          <input type="text" id="k9NoPermohonan" required class="p-1.5 border border-orange-300 rounded font-mono font-bold text-right text-xs bg-white w-52 focus:ring-2 focus:ring-orange-500 focus:outline-none" />
+        </div>
+
+        <!-- Jadual Maklumat Pemohon, Tujuan & Pengeluar (Data Pembekal Terus Masuk Sini) -->
+        <div class="border border-slate-300 rounded-lg overflow-hidden bg-white">
+          <table class="w-full text-left text-xs border-collapse">
+            <tbody>
+              <tr class="border-b border-slate-200">
+                <td class="w-1/4 p-2 bg-slate-100 font-bold border-r border-slate-200">Nama Pemohon:</td>
+                <td class="w-1/4 p-1.5 border-r border-slate-200">
+                  <input type="text" id="k9NamaPemohon" required placeholder="Nama Penuh Pemohon" class="w-full p-1 border rounded focus:ring-1 focus:ring-orange-500 focus:outline-none font-medium" />
+                </td>
+                <td class="w-1/4 p-2 bg-slate-100 font-bold border-r border-slate-200">Tujuan:</td>
+                <td class="w-1/4 p-1.5">
+                  <input type="text" id="k9Tujuan" required placeholder="Tujuan Pinjaman / Operasi" class="w-full p-1 border rounded focus:ring-1 focus:ring-orange-500 focus:outline-none" />
+                </td>
+              </tr>
+              <tr class="border-b border-slate-200">
+                <td class="p-2 bg-slate-100 font-bold border-r border-slate-200">Jawatan:</td>
+                <td class="p-1.5 border-r border-slate-200">
+                  <input type="text" id="k9JawatanPemohon" required placeholder="Jawatan / Gred" class="w-full p-1 border rounded focus:ring-1 focus:ring-orange-500 focus:outline-none" />
+                </td>
+                <td class="p-2 bg-slate-100 font-bold border-r border-slate-200">Tempat Digunakan:</td>
+                <td class="p-1.5">
+                  <input type="text" id="k9TempatDigunakan" required placeholder="Lokasi Digunakan" class="w-full p-1 border rounded focus:ring-1 focus:ring-orange-500 focus:outline-none" />
+                </td>
+              </tr>
+              <tr>
+                <td class="p-2 bg-slate-100 font-bold border-r border-slate-200">Bahagian:</td>
+                <td class="p-1.5 border-r border-slate-200">
+                  <input type="text" id="k9Bahagian" value="BBP" required class="w-full p-1 border rounded focus:ring-1 focus:ring-orange-500 focus:outline-none" />
+                </td>
+                <td class="p-2 bg-slate-100 font-bold border-r border-slate-200 text-orange-700">Nama Pengeluar (Pembekal):</td>
+                <td class="p-1.5">
+                  <input type="text" id="k9NamaPengeluar" required placeholder="Diisi automatik dari data pembekal" class="w-full p-1 border rounded focus:ring-1 focus:ring-orange-500 focus:outline-none font-semibold text-slate-800 bg-amber-50" />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- SEKSYEN PENAMBAHAN ASET PINJAMAN (DINAMIK) -->
+        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+          <div class="flex justify-between items-center mb-2.5">
+            <h4 class="font-bold text-slate-800 text-[11px] uppercase text-orange-700 flex items-center gap-1.5">
+              <i class="fa-solid fa-boxes-stacked"></i> Senarai Aset Yang Dipinjamkan:
+            </h4>
+            <!-- BUTANG TAMBAH ASET PINJAMAN -->
+            <button 
+              type="button" 
+              onclick="addKewpa9AssetRow()" 
+              class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md font-bold text-xs flex items-center gap-1 shadow transition"
+              title="Tambah baris peralatan yang dipinjam"
+            >
+              <i class="fa-solid fa-plus text-[10px]"></i>
+              <span>+ Tambah Aset</span>
+            </button>
+          </div>
+
+          <div id="kewpa9AssetRowsContainer" class="space-y-2.5"></div>
+          <datalist id="assetNumberList"></datalist>
+        </div>
+
+        <!-- Tarikh & Kelulusan Pinjaman -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-slate-50 p-3 rounded-lg border border-slate-200">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-0.5">Tarikh Dipinjam <span class="text-red-500">*</span></label>
+            <input type="text" id="k9TarikhPinjam" required class="w-full p-1.5 border border-slate-300 rounded bg-white cursor-pointer text-xs" />
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-0.5">Tarikh Dijangka Pulang <span class="text-red-500">*</span></label>
+            <input type="text" id="k9TarikhJangkaPulang" required class="w-full p-1.5 border border-slate-300 rounded bg-white cursor-pointer text-xs" />
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-0.5">Kelulusan Pelulus</label>
+            <select id="k9Kelulusan" class="w-full p-1.5 border border-slate-300 rounded bg-white font-semibold text-xs">
+              <option value="Lulus" selected>Lulus</option>
+              <option value="Tidak Lulus">Tidak Lulus</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-0.5">Tindakan Status Sistem</label>
+            <select id="k9UpdateStatus" class="w-full p-1.5 border border-slate-300 rounded bg-white font-medium text-xs">
+              <option value="Dipinjamkan" selected>Set Status 'Dipinjamkan'</option>
+              <option value="Kekal">Kekalkan Status Asal</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Butiran Pegawai Pelulus -->
+        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+          <p class="font-bold text-slate-800 text-[11px] mb-2 uppercase text-blue-700">
+            Butiran Pegawai Pelulus:
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-0.5">Nama Pegawai Pelulus <span class="text-red-500">*</span></label>
+              <input type="text" id="k9NamaPelulus" required placeholder="Nama Ketua Balai / Pegawai Pelulus" class="w-full p-1.5 border border-slate-300 rounded text-xs" />
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-0.5">Jawatan Pegawai Pelulus <span class="text-red-500">*</span></label>
+              <input type="text" id="k9JawatanPelulus" required value="Ketua Balai / Pegawai Aset" class="w-full p-1.5 border border-slate-300 rounded text-xs" />
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-slate-200 flex flex-wrap justify-end gap-2">
+          <button type="button" onclick="closeKewpa9Modal()" class="px-3.5 py-1.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-100 font-medium">Batal</button>
+          <button type="button" onclick="printOfficialKewpa9()" class="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold flex items-center gap-1.5 shadow">
+            <i class="fa-solid fa-print text-amber-300"></i>
+            <span>Cetak Format KEW.PA-9</span>
+          </button>
+          <button type="submit" id="btnSaveKewpa9" class="px-4 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg font-bold flex items-center gap-1.5 shadow">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span>Simpan Permohonan</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= DOKUMEN CETAKAN RASMI KEW.PA-9 (100% SAMA SEPERTI LAMPIRAN AM 2.4 PEKELILING) ================= -->
+  <div id="printKewpa9OfficialSection">
+    
+    <!-- Bahagian Atas Pekeliling -->
+    <div style="display: flex; justify-content: space-between; font-size: 10.5px; margin-bottom: 2px;">
+      <span>Pekeliling Perbendaharaan Malaysia</span>
+      <span>AM 2.4 Lampiran A</span>
+    </div>
+
+    <!-- Tajuk KEW.PA-9 & No Permohonan -->
+    <div style="text-align: right; margin-bottom: 4px;">
+      <h3 style="font-size: 13.5px; font-weight: bold; margin: 0;">KEW.PA-9</h3>
+      <p style="font-size: 10.5px; margin: 3px 0 0 0;">No. Permohonan : <span id="k9pNoPermohonan" style="font-family: monospace;">..........</span></p>
+    </div>
+
+    <!-- Tajuk Utama -->
+    <div style="text-align: center; margin: 10px 0 12px 0;">
+      <h2 style="font-size: 11.5px; font-weight: bold; text-transform: uppercase; margin: 0;">
+        BORANG PERMOHONAN PERGERAKAN/ PINJAMAN ASET ALIH
+      </h2>
+    </div>
+
+    <!-- Jadual Atas: Butiran Pemohon, Tujuan & Pengeluar (100% Kotak Bergaris Penuh) -->
+    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 10px; margin-bottom: 14px;">
+      <tr>
+        <td style="width: 18%; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">Nama Pemohon:</td>
+        <td style="width: 32%; border: 1px solid #000; padding: 5px 6px;" id="k9pNamaPemohon"></td>
+        <td style="width: 18%; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">Tujuan:</td>
+        <td style="width: 32%; border: 1px solid #000; padding: 5px 6px;" id="k9pTujuan"></td>
+      </tr>
+      <tr>
+        <td style="border: 1px solid #000; padding: 5px 6px; font-weight: bold;">Jawatan:</td>
+        <td style="border: 1px solid #000; padding: 5px 6px;" id="k9pJawatan"></td>
+        <td style="border: 1px solid #000; padding: 5px 6px; font-weight: bold;">Tempat Digunakan:</td>
+        <td style="border: 1px solid #000; padding: 5px 6px;" id="k9pTempatDigunakan"></td>
+      </tr>
+      <tr>
+        <td style="border: 1px solid #000; padding: 5px 6px; font-weight: bold;">Bahagian:</td>
+        <td style="border: 1px solid #000; padding: 5px 6px;" id="k9pBahagian"></td>
+        <td style="border: 1px solid #000; padding: 5px 6px; font-weight: bold;">Nama Pengeluar:</td>
+        <td style="border: 1px solid #000; padding: 5px 6px;" id="k9pNamaPengeluar"></td>
+      </tr>
+    </table>
+
+    <!-- Jadual Utama Aset (Minima 4 Baris Tepat Mengikut Lampiran A) -->
+    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 9.5px; text-align: center; margin-bottom: 16px;">
+      <thead>
+        <tr style="background-color: #f3f4f6;">
+          <th rowspan="2" style="border: 1px solid #000; padding: 5px 2px; width: 5%;">Bil.</th>
+          <th rowspan="2" style="border: 1px solid #000; padding: 5px 4px; width: 18%;">No. Siri<br>Pendaftaran</th>
+          <th rowspan="2" style="border: 1px solid #000; padding: 5px 4px; width: 22%;">Keterangan<br>Aset</th>
+          <th colspan="2" style="border: 1px solid #000; padding: 4px 2px; width: 18%;">Tarikh</th>
+          <th rowspan="2" style="border: 1px solid #000; padding: 5px 2px; width: 10%;">(Lulus/<br>Tidak<br>Lulus)</th>
+          <th colspan="2" style="border: 1px solid #000; padding: 4px 2px; width: 18%;">Tarikh</th>
+          <th rowspan="2" style="border: 1px solid #000; padding: 5px 3px; width: 9%;">Catatan</th>
+        </tr>
+        <tr style="background-color: #f3f4f6;">
+          <th style="border: 1px solid #000; padding: 3px 2px;">Dipinjam</th>
+          <th style="border: 1px solid #000; padding: 3px 2px;">Dijangka<br>Pulang</th>
+          <th style="border: 1px solid #000; padding: 3px 2px;">Dipulangkan</th>
+          <th style="border: 1px solid #000; padding: 3px 2px;">Diterima</th>
+        </tr>
+      </thead>
+      <tbody id="k9pPrintTableBody"></tbody>
+    </table>
+
+    <!-- Jadual 4 Kotak Tandatangan (Format 2 Atas & 2 Bawah Bergaris Penuh Menepati Lampiran A) -->
+    <table class="signature-block-official" style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 10px; margin-bottom: 14px;">
+      <tr>
+        <td style="width: 50%; border: 1px solid #000; padding: 14px 16px; vertical-align: top;">
+          <p style="margin: 0 0 2px 0;">………………………………….</p>
+          <p style="margin: 0;">(Tandatangan Peminjam)</p>
+          <p style="margin: 4px 0 0 0;">Nama &nbsp;&nbsp;&nbsp;&nbsp;: <span id="k9pSignNamaPeminjam"></span></p>
+          <p style="margin: 2px 0 0 0;">Jawatan : <span id="k9pSignJawatanPeminjam"></span></p>
+          <p style="margin: 2px 0 0 0;">Tarikh &nbsp;&nbsp;&nbsp;: <span id="k9pSignTarikhPeminjam"></span></p>
+        </td>
+        <td style="width: 50%; border: 1px solid #000; padding: 14px 16px; vertical-align: top;">
+          <p style="margin: 0 0 2px 0;">………………………………….</p>
+          <p style="margin: 0;">(Tandatangan Pelulus)</p>
+          <p style="margin: 4px 0 0 0;">Nama &nbsp;&nbsp;&nbsp;&nbsp;: <span id="k9pSignNamaPelulus"></span></p>
+          <p style="margin: 2px 0 0 0;">Jawatan : <span id="k9pSignJawatanPelulus"></span></p>
+          <p style="margin: 2px 0 0 0;">Tarikh &nbsp;&nbsp;&nbsp;: <span id="k9pSignTarikhPelulus"></span></p>
+        </td>
+      </tr>
+      <tr>
+        <td style="width: 50%; border: 1px solid #000; padding: 14px 16px; vertical-align: top;">
+          <p style="margin: 0 0 2px 0;">………………………………….</p>
+          <p style="margin: 0;">(Tandatangan Pemulang)</p>
+          <p style="margin: 4px 0 0 0;">Nama &nbsp;&nbsp;&nbsp;&nbsp;:</p>
+          <p style="margin: 2px 0 0 0;">Jawatan :</p>
+          <p style="margin: 2px 0 0 0;">Tarikh &nbsp;&nbsp;&nbsp;:</p>
+        </td>
+        <td style="width: 50%; border: 1px solid #000; padding: 14px 16px; vertical-align: top;">
+          <p style="margin: 0 0 2px 0;">………………………………….</p>
+          <p style="margin: 0;">(Tandatangan Penerima)</p>
+          <p style="margin: 4px 0 0 0;">Nama &nbsp;&nbsp;&nbsp;&nbsp;:</p>
+          <p style="margin: 2px 0 0 0;">Jawatan :</p>
+          <p style="margin: 2px 0 0 0;">Tarikh &nbsp;&nbsp;&nbsp;:</p>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Footer M.S. 1/1 Tepat Berpusat -->
+    <div style="text-align: center; font-size: 10px; margin-top: 10px;">
+      M.S. 1/1
+    </div>
+
+  </div>
+
+  <!-- ================= KAWASAN CETAKAN LAPORAN BULANAN (A4 LANDSCAPE) ================= -->
+  <div id="printReportSection">
+    <div style="border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 10px;">
+      <table style="width: 100%; border: none; border-collapse: collapse;">
+        <tr>
+          <td style="width: 55px; border: none; vertical-align: middle; padding: 0;">
+            <img id="main-header-logo" src="https://img.ge/i/ZYAk730.png" alt="Logo" width="50" height="20">
+          </td>
+          <td style="border: none; vertical-align: middle; padding-left: 10px; text-align: left;">
+            <h2 style="font-size: 13px; font-weight: 800; margin: 0; text-transform: uppercase; color: #000;">JABATAN BOMBA DAN PENYELAMAT MALAYSIA</h2>
+            <h3 style="font-size: 11px; font-weight: 700; color: #b91c1c; margin: 2px 0 0 0; text-transform: uppercase;">BALAI BOMBA DAN PENYELAMAT SIMPANG PULAI, PERAK</h3>
+            <p style="font-size: 9.5px; color: #374151; margin: 1px 0 0 0;">LAPORAN KEDUDUKAN SEMASA ASET KERAJAAN</p>
+          </td>
+          <td style="width: 260px; border: none; vertical-align: middle; text-align: right; font-size: 9px; line-height: 1.4; color: #111;">
+            <p style="margin: 0;"><strong>Tarikh Cetak:</strong> <span id="printDateSpan">-</span></p>
+            <p style="margin: 0;"><strong>Tempoh Laporan:</strong> <span id="printPeriodSpan">-</span></p>
+            <p style="margin: 0;"><strong>Status Dokumen:</strong> SALINAN</p>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Ringkasan Statistik -->
+      <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 8px; font-size: 8.5px;">
+        <div style="border: 1px solid #9ca3af; padding: 4px 6px; border-radius: 3px; background: #f3f4f6;">
+          <span style="color: #4b5563;">Jumlah Aset:</span> <strong id="printStatTotal" style="float: right;">0</strong>
+        </div>
+        <div style="border: 1px solid #9ca3af; padding: 4px 6px; border-radius: 3px; background: #f3f4f6;">
+          <span style="color: #4b5563;">Alih (Modal):</span> <strong id="printStatAlihModal" style="float: right;">0</strong>
+        </div>
+        <div style="border: 1px solid #9ca3af; padding: 4px 6px; border-radius: 3px; background: #f3f4f6;">
+          <span style="color: #4b5563;">Modal (ABR):</span> <strong id="printStatModalABR" style="float: right;">0</strong>
+        </div>
+        <div style="border: 1px solid #9ca3af; padding: 4px 6px; border-radius: 3px; background: #f3f4f6;">
+          <span style="color: #4b5563;">Tak Alih:</span> <strong id="printStatTakAlih" style="float: right;">0</strong>
+        </div>
+        <div style="border: 1px solid #9ca3af; padding: 4px 6px; border-radius: 3px; background: #f3f4f6;">
+          <span style="color: #4b5563;">Aksesori:</span> <strong id="printStatAksesori" style="float: right;">0</strong>
+        </div>
+        <div style="border: 1px solid #9ca3af; padding: 4px 6px; border-radius: 3px; background: #f3f4f6;">
+          <span style="color: #4b5563;">Jumlah Nilai:</span> <strong id="printStatNilai" style="float: right;">RM 0.00</strong>
+        </div>
+      </div>
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 8.5px; table-layout: fixed;">
+      <thead>
+        <tr style="background-color: #e5e7eb; color: #000; text-transform: uppercase; font-weight: bold; text-align: center;">
+          <th style="border: 1px solid #000; padding: 5px 2px; width: 4%;">Bil</th>
+          <th style="border: 1px solid #000; padding: 5px 3px; width: 14%;">Jenis Aset</th>
+          <th style="border: 1px solid #000; padding: 5px 4px; width: 20%; text-align: left;">Nama Aset</th>
+          <th style="border: 1px solid #000; padding: 5px 3px; width: 10%;">Kegunaan</th>
+          <th style="border: 1px solid #000; padding: 5px 3px; width: 15%; font-family: monospace;">No Aset</th>
+          <th style="border: 1px solid #000; padding: 5px 3px; width: 15%;">Pembekal</th>
+          <th style="border: 1px solid #000; padding: 5px 2px; width: 8%;">Tarikh</th>
+          <th style="border: 1px solid #000; padding: 5px 3px; width: 8%; text-align: right;">Nilai (RM)</th>
+          <th style="border: 1px solid #000; padding: 5px 2px; width: 6%;">Status</th>
+        </tr>
+      </thead>
+      <tbody id="printTableBody"></tbody>
+    </table>
+
+    <div class="signature-box" style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; font-size: 9px; padding-top: 12px; margin-top: 15px; border-top: 1px solid #9ca3af;">
+      <div>
+        <p style="font-weight: bold; margin: 0 0 30px 0;">Disediakan Oleh:</p>
+        <div style="border-top: 1px solid #374151; padding-top: 3px;">
+          <p style="margin: 0; font-weight: bold;">Nama: ..............................................................</p>
+          <p style="margin: 2px 0 0 0; color: #4b5563;">Jawatan: Pegawai Pemeriksa Aset / Kerani Aset</p>
+          <p style="margin: 1px 0 0 0; color: #4b5563;">BBP Simpang Pulai</p>
+        </div>
+      </div>
+
+      <div>
+        <p style="font-weight: bold; margin: 0 0 30px 0;">Disahkan Oleh:</p>
+        <div style="border-top: 1px solid #374151; padding-top: 3px;">
+          <p style="margin: 0; font-weight: bold;">Nama: ..............................................................</p>
+          <p style="margin: 2px 0 0 0; color: #4b5563;">Jawatan: Ketua Balai / Pegawai Aset</p>
+          <p style="margin: 1px 0 0 0; color: #4b5563;">Balai Bomba dan Penyelamat Simpang Pulai</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: DAFTAR / EDIT DATA ASET ================= -->
+  <div id="assetModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden my-8 animate-fadeIn">
+      <div class="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between border-b-2 border-red-600">
+        <h3 id="modalTitle" class="font-bold text-sm flex items-center gap-2">
+          <i class="fa-solid fa-file-circle-plus text-red-500"></i>
+          Daftar Aset Baru
+        </h3>
+        <button onclick="closeAssetModal()" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form id="assetForm" onsubmit="handleFormSubmit(event)" class="p-5 space-y-3.5 text-xs">
+        <input type="hidden" id="editIndex" value="-1" />
+        <input type="hidden" id="formBil" value="" />
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Jenis Aset <span class="text-red-500">*</span></label>
+            <select id="formJenis" required class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none bg-slate-50 font-medium">
+              <option value="Aset Alih (Harta Modal)">Aset Alih (Harta Modal)</option>
+              <option value="Harta Modal (ABR)">Harta Modal (ABR)</option>
+              <option value="Aset tak Alih">Aset tak Alih</option>
+              <option value="Aksesori">Aksesori</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Nama Aset <span class="text-red-500">*</span></label>
+            <input type="text" id="formNamaAset" placeholder="cth: Pam Angkut / Hos Penghantar" required class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none font-semibold" />
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Kegunaan Aset <span class="text-red-500">*</span></label>
+            <select id="formKegunaan" required class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none bg-slate-50">
+              <option value="Pengurusan">Pengurusan</option>
+              <option value="Operasi">Operasi</option>
+              <option value="Stor Utiliti">Stor Utiliti</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">No Aset (KEW.PA) <span class="text-red-500">*</span></label>
+            <input type="text" id="formNoAset" placeholder="cth: JBPM/BBP-SP/H/24/001" required class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none font-mono" />
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Pembekal / Pengeluar <span class="text-red-500">*</span></label>
+            <input type="text" id="formPembekal" placeholder="cth: Wira Fire Safety Sdn Bhd" required class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none font-medium" />
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Tarikh Terima (dd/mm/yyyy) <span class="text-red-500">*</span></label>
+            <div class="relative">
+              <input type="text" id="formTarikh" placeholder="dd/mm/yyyy" required class="w-full p-2 pl-8 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none bg-white cursor-pointer" />
+              <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+                <i class="fa-regular fa-calendar text-xs"></i>
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Nilai Aset (RM) <span class="text-red-500">*</span></label>
+            <div class="relative">
+              <input type="number" step="0.01" min="0" id="formNilai" placeholder="0.00" required class="w-full p-2 pl-8 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none font-semibold" />
+              <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none font-bold text-slate-400 text-xs">RM</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Status Aset <span class="text-red-500">*</span></label>
+            <select id="formStatus" required class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none bg-slate-50 font-medium">
+              <option value="Baik">Baik</option>
+              <option value="Rosak">Rosak</option>
+              <option value="Dipinjamkan">Dipinjamkan</option>
+              <option value="Dipindahkan">Dipindahkan</option>
+              <option value="Dilupuskan">Dilupuskan</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-slate-200 flex justify-end gap-2">
+          <button type="button" onclick="closeAssetModal()" class="px-3.5 py-1.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-100 font-medium">Batal</button>
+          <button type="submit" id="btnSaveSubmit" class="px-4 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold shadow transition flex items-center gap-1.5">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span>Simpan ke Google Sheet</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: JANA LAPORAN BULANAN (PDF) ================= -->
+  <div id="pdfModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5">
+      <div class="flex justify-between items-center border-b pb-3 mb-3">
+        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+          <i class="fa-solid fa-print text-red-600"></i>
+          Pilihan Penjanaan Laporan PDF (A4 Landscape)
+        </h3>
+        <button onclick="closePdfModal()" class="text-slate-400 hover:text-slate-600">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Pilih Bulan & Tahun</label>
+          <div class="grid grid-cols-2 gap-2">
+            <select id="pdfMonth" class="p-2 border rounded-lg bg-slate-50 font-medium">
+              <option value="all">Semua Bulan</option>
+              <option value="01">Januari</option>
+              <option value="02">Februari</option>
+              <option value="03">Mac</option>
+              <option value="04">April</option>
+              <option value="05">Mei</option>
+              <option value="06">Jun</option>
+              <option value="07">Julai</option>
+              <option value="08">Ogos</option>
+              <option value="09">September</option>
+              <option value="10">Oktober</option>
+              <option value="11">November</option>
+              <option value="12">Disember</option>
+            </select>
+            <select id="pdfYear" class="p-2 border rounded-lg bg-slate-50 font-medium">
+              <option value="all">Semua Tahun</option>
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Kategori Aset</label>
+          <select id="pdfCategory" class="w-full p-2 border rounded-lg bg-slate-50 font-medium">
+            <option value="all">Semua Jenis Aset</option>
+            <option value="Aset Alih (Harta Modal)">Aset Alih (Harta Modal)</option>
+            <option value="Harta Modal (ABR)">Harta Modal (ABR)</option>
+            <option value="Aset tak Alih">Aset tak Alih</option>
+            <option value="Aksesori">Aksesori</option>
+          </select>
+        </div>
+
+        <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900 text-[11px] leading-relaxed">
+          <i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i>
+          <strong>Format Cetakan Piawai:</strong> Dokumen dijana mengikut saiz A4 Landscape rasmi.
+        </div>
+      </div>
+
+      <div class="mt-5 flex justify-end gap-2">
+        <button onclick="closePdfModal()" class="px-3.5 py-1.5 border border-slate-300 rounded-lg text-slate-600 font-medium text-xs">Batal</button>
+        <button onclick="generateBrowserPrintPdf()" id="btnGeneratePdf" class="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5">
+          <i class="fa-solid fa-print"></i>
+          <span>Jana / Cetak Laporan</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= LOGIK JAVASCRIPT ================= -->
+  <script>
+    const GAS_BACKEND_URL = "https://script.google.com/macros/s/AKfycbz8vWxB2kNvQe8XQRG_CqGGWejMNba_f-0j4yTiuIHeq0pcLLdAEp02V4D9rBcvNOY/exec";
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQXkfuuVFfFNr5na_oJ69o7i0irtX3yx4-Hsmg43FwD5FZl_y3qcp_T8rapeOMmFAD0jR1cPQ0CAMZ2/pub?output=csv";
+
+    let assetList = [];
+    let fpTarikh = null;
+    let fpK9Pinjam = null;
+    let fpK9Jangka = null;
+
+    let kewpa9AssetItems = [
+      { noAset: "", keteranganAset: "", catatan: "", pembekal: "" }
+    ];
+
+    function mapNormalizedJenisAset(raw) {
+      if (!raw) return "Aset Alih (Harta Modal)";
+      const s = String(raw).trim();
+      const lower = s.toLowerCase();
+
+      if (lower.includes("aksesori") || lower.includes("accessory")) {
+        return "Aksesori";
+      } else if (lower.includes("tak alih")) {
+        return "Aset tak Alih";
+      } else if (lower.includes("abr") || lower.includes("rendah")) {
+        return "Harta Modal (ABR)";
+      } else if (lower.includes("harta modal") || lower.includes("alih")) {
+        return "Aset Alih (Harta Modal)";
+      }
+      return s;
+    }
+
+    function normalizeDateToDDMMYYYY(val) {
+      if (!val) return "";
+      let s = String(val).trim();
+      if (!s || s === "null" || s === "undefined" || s === "-") return "";
+
+      const ddmmyyyyMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (ddmmyyyyMatch) {
+        return `${ddmmyyyyMatch[1].padStart(2, '0')}/${ddmmyyyyMatch[2].padStart(2, '0')}/${ddmmyyyyMatch[3]}`;
+      }
+
+      const yyyymmddMatch = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+      if (yyyymmddMatch) {
+        return `${yyyymmddMatch[3].padStart(2, '0')}/${yyyymmddMatch[2].padStart(2, '0')}/${yyyymmddMatch[1]}`;
+      }
+
+      const parsed = new Date(s);
+      if (!isNaN(parsed.getTime())) {
+        const day = String(parsed.getDate()).padStart(2, '0');
+        const month = String(parsed.getMonth() + 1).padStart(2, '0');
+        const year = parsed.getFullYear();
+        return `${day}/${month}/${year}`;
+      }
+
+      return s;
+    }
+
+    function cleanText(val, fallback = "-") {
+      if (val === null || val === undefined) return fallback;
+      const str = String(val).trim().replace(/\s+/g, ' ');
+      return str === "" ? fallback : str;
+    }
+
+    function cleanCurrency(val) {
+      if (!val) return "0.00";
+      const cleaned = String(val).replace(/[^0-9.]/g, '');
+      const parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? "0.00" : parsed.toFixed(2);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      // Semak dahulu sama ada elemen currentYear wujud sebelum ubah teks
+      const yearEl = document.getElementById("currentYear");
+      if (yearEl) {
+        yearEl.textContent = new Date().getFullYear();
+      }
+      
+      // Inisialisasi Flatpickr dengan selamat
+      if (typeof flatpickr !== "undefined") {
+        fpTarikh = flatpickr("#formTarikh", {
+          dateFormat: "d/m/Y",
+          allowInput: true,
+          defaultDate: new Date()
+        });
+
+        fpK9Pinjam = flatpickr("#k9TarikhPinjam", {
+          dateFormat: "d/m/Y",
+          allowInput: true,
+          defaultDate: new Date()
+        });
+
+        fpK9Jangka = flatpickr("#k9TarikhJangkaPulang", {
+          dateFormat: "d/m/Y",
+          allowInput: true,
+          defaultDate: new Date(Date.now() + 3*24*60*60*1000)
+        });
+      }
+
+      // Panggil fungsi muat data
+      fetchAssetData();
+    });
+
+    async function fetchAssetData() {
+      const tbody = document.getElementById("assetTableBody");
+      tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin text-xl mb-1 text-red-600 block"></i>Mendapatkan data terkini...</td></tr>`;
+
+      try {
+        const gasResponse = await fetch(GAS_BACKEND_URL + "?action=read&t=" + new Date().getTime());
+        if (gasResponse.ok) {
+          const result = await gasResponse.json();
+          if (Array.isArray(result) && result.length > 0) {
+            assetList = mapGasData(result);
+            localStorage.setItem("BOMBA_ASSETS_DATA_OFFICIAL", JSON.stringify(assetList));
+            updateDatalistAset();
+            renderTable();
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("Beralih kepada capaian CSV...", e);
+      }
+
+      try {
+        const response = await fetch(CSV_URL + "&t=" + new Date().getTime());
+        if (!response.ok) throw new Error("Gagal mengambil CSV");
+        
+        const textData = await response.text();
+        assetList = parseCSVData(textData);
+
+        if (assetList.length === 0) {
+          const cached = localStorage.getItem("BOMBA_ASSETS_DATA_OFFICIAL");
+          if (cached) assetList = JSON.parse(cached);
+        }
+
+        localStorage.setItem("BOMBA_ASSETS_DATA_OFFICIAL", JSON.stringify(assetList));
+        updateDatalistAset();
+        renderTable();
+      } catch (err) {
+        console.warn("Ralat memuat data:", err);
+        const cached = localStorage.getItem("BOMBA_ASSETS_DATA_OFFICIAL");
+        if (cached) {
+          assetList = JSON.parse(cached);
+        } else {
+          assetList = [
+            { bil: "1", jenis: "Aset Alih (Harta Modal)", namaAset: "14.0m FIRE RESCUE LADDER (FRT BLV9683)", kegunaan: "Operasi", noAset: "KPKT/JBPM196/A-KT-6/H/13/23-57", pembekal: "Pegawai Stor / Aset", tarikh: "10/09/2026", nilai: "14500.00", status: "Baik" },
+            { bil: "2", jenis: "Harta Modal (ABR)", namaAset: "Pencetak Laserjet HP", kegunaan: "Pengurusan", noAset: "JBPM/BBP-SP/R/24/008", pembekal: "Perniagaan Alat Tulis Mega", tarikh: "10/02/2024", nilai: "850.00", status: "Baik" },
+            { bil: "3", jenis: "Aset tak Alih", namaAset: "Genset Bilik Suis Utama", kegunaan: "Stor Utiliti", noAset: "JBPM/BBP-SP/TA/24/003", pembekal: "Perak Engineering Supplies", tarikh: "01/03/2024", nilai: "35000.00", status: "Dipinjamkan" }
+          ];
+        }
+        updateDatalistAset();
+        renderTable();
+      }
+    }
+
+    function updateDatalistAset() {
+      const datalist = document.getElementById("assetNumberList");
+      if (!datalist) return;
+      datalist.innerHTML = "";
+      assetList.forEach(item => {
+        if (item.noAset && item.noAset !== "-") {
+          const opt = document.createElement("option");
+          opt.value = item.noAset;
+          opt.textContent = `${item.namaAset} (${item.pembekal})`;
+          datalist.appendChild(opt);
+        }
+      });
+    }
+
+    function mapGasData(rows) {
+      if (rows.length < 2) return [];
+      const list = [];
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || r.length < 4) continue;
+        
+        let item = {};
+        if (r.length >= 10) {
+          item = {
+            bil: cleanText(r[0], i.toString()),
+            jenis: mapNormalizedJenisAset(r[1]),
+            namaAset: cleanText(r[2]),
+            kegunaan: cleanText(r[3], "Operasi"),
+            noAset: cleanText(r[4]),
+            pembekal: cleanText(r[5] || r[8], "Pegawai Stor / Aset"),
+            tarikh: normalizeDateToDDMMYYYY(r[6]),
+            nilai: cleanCurrency(r[7]),
+            status: cleanText(r[9], "Baik")
+          };
+        } else {
+          item = {
+            bil: cleanText(r[0], i.toString()),
+            jenis: mapNormalizedJenisAset(r[1]),
+            namaAset: cleanText(r[2]),
+            kegunaan: cleanText(r[3], "Operasi"),
+            noAset: cleanText(r[4]),
+            pembekal: cleanText(r[5] || r[7], "Pegawai Stor / Aset"),
+            tarikh: normalizeDateToDDMMYYYY(r[6]),
+            nilai: cleanCurrency(r[7]),
+            status: cleanText(r[8], "Baik")
+          };
+        }
+        list.push(item);
+      }
+      return list;
+    }
+
+    function parseCSVData(text) {
+      const lines = text.trim().split(/\r\n|\n/);
+      if (lines.length < 2) return [];
+
+      const parsed = [];
+      for (let i = 1; i < lines.length; i++) {
+        const row = lines[i];
+        if (!row.trim()) continue;
+
+        const cols = [];
+        let inQuotes = false;
+        let current = '';
+
+        for (let char of row) {
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            cols.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        cols.push(current.trim());
+
+        if (cols.length >= 10) {
+          parsed.push({
+            bil: cleanText(cols[0], i.toString()),
+            jenis: mapNormalizedJenisAset(cols[1]),
+            namaAset: cleanText(cols[2]),
+            kegunaan: cleanText(cols[3], "Operasi"),
+            noAset: cleanText(cols[4]),
+            pembekal: cleanText(cols[5] || cols[8], "Pegawai Stor / Aset"),
+            tarikh: normalizeDateToDDMMYYYY(cols[6]),
+            nilai: cleanCurrency(cols[7]),
+            status: cleanText(cols[9], "Baik")
+          });
+        } else if (cols.length >= 8) {
+          parsed.push({
+            bil: cleanText(cols[0], i.toString()),
+            jenis: mapNormalizedJenisAset(cols[1]),
+            namaAset: cleanText(cols[2]),
+            kegunaan: cleanText(cols[3], "Operasi"),
+            noAset: cleanText(cols[4]),
+            pembekal: cleanText(cols[5] || cols[7], "Pegawai Stor / Aset"),
+            tarikh: normalizeDateToDDMMYYYY(cols[6]),
+            nilai: cleanCurrency(cols[7]),
+            status: cleanText(cols[8], "Baik")
+          });
+        }
+      }
+      return parsed;
+    }
+
+    function renderTable() {
+      const search = document.getElementById("searchInput").value.toLowerCase();
+      const filterJenis = document.getElementById("filterJenis").value;
+      const filterKegunaan = document.getElementById("filterKegunaan").value;
+      const filterStatus = document.getElementById("filterStatus").value;
+
+      const tbody = document.getElementById("assetTableBody");
+      tbody.innerHTML = "";
+
+      let countAlihModal = 0, countModalABR = 0, countTakAlih = 0, countAksesori = 0, countBaik = 0, totalNilai = 0;
+
+      assetList.forEach(item => {
+        item.tarikh = normalizeDateToDDMMYYYY(item.tarikh);
+        item.jenis = mapNormalizedJenisAset(item.jenis);
+
+        if (item.jenis === "Aset Alih (Harta Modal)") countAlihModal++;
+        else if (item.jenis === "Harta Modal (ABR)") countModalABR++;
+        else if (item.jenis === "Aset tak Alih") countTakAlih++;
+        else if (item.jenis === "Aksesori") countAksesori++;
+
+        if (item.status === "Baik") countBaik++;
+        totalNilai += parseFloat(item.nilai) || 0;
+      });
+
+      document.getElementById("statTotal").textContent = assetList.length;
+      document.getElementById("statAlihModal").textContent = countAlihModal;
+      document.getElementById("statModalABR").textContent = countModalABR;
+      document.getElementById("statTakAlih").textContent = countTakAlih;
+      document.getElementById("statAksesori").textContent = countAksesori;
+      document.getElementById("statNilai").textContent = "RM " + totalNilai.toLocaleString('ms-MY', { minimumFractionDigits: 2 });
+
+      const filtered = assetList.filter((item, idx) => {
+        item._originalIndex = idx;
+        const matchSearch = (
+          (item.namaAset || "").toLowerCase().includes(search) ||
+          (item.noAset || "").toLowerCase().includes(search) ||
+          (item.pembekal || "").toLowerCase().includes(search)
+        );
+        const matchJenis = filterJenis === "" || item.jenis === filterJenis;
+        const matchKegunaan = filterKegunaan === "" || item.kegunaan === filterKegunaan;
+        const matchStatus = filterStatus === "" || item.status === filterStatus;
+        return matchSearch && matchJenis && matchKegunaan && matchStatus;
+      });
+
+      document.getElementById("dataCount").textContent = `${filtered.length} Rekod`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-6 text-slate-400">Tiada rekod dijumpai mengikut tapisan.</td></tr>`;
+        return;
+      }
+
+      filtered.forEach((item, index) => {
+        const val = parseFloat(item.nilai) || 0;
+        const formattedVal = val.toLocaleString('ms-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        let statusBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800">Baik</span>`;
+        if (item.status === "Rosak") {
+          statusBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-800">Rosak</span>`;
+        } else if (item.status === "Dipinjamkan") {
+          statusBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800">Dipinjamkan</span>`;
+        } else if (item.status === "Dipindahkan") {
+          statusBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-800">Dipindahkan</span>`;
+        } else if (item.status === "Dilupuskan") {
+          statusBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-200 text-slate-700">Dilupuskan</span>`;
+        }
+
+        let jenisColor = "text-blue-700";
+        if (item.jenis === "Harta Modal (ABR)") jenisColor = "text-amber-700";
+        else if (item.jenis === "Aset tak Alih") jenisColor = "text-purple-700";
+        else if (item.jenis === "Aksesori") jenisColor = "text-teal-700 font-bold";
+
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+        tr.innerHTML = `
+          <td class="py-2 px-2 text-center font-bold text-slate-500">${index + 1}</td>
+          <td class="py-2 px-2 font-semibold ${jenisColor} break-words leading-tight">${item.jenis}</td>
+          <td class="py-2 px-2 font-bold text-slate-900 break-words leading-tight">${item.namaAset || '-'}</td>
+          <td class="py-2 px-2 text-slate-600 break-words leading-tight">${item.kegunaan}</td>
+          <td class="py-2 px-2 font-mono font-bold text-slate-800 break-words leading-tight">${item.noAset}</td>
+          <td class="py-2 px-2 break-words leading-tight font-medium text-slate-800">${item.pembekal}</td>
+          <td class="py-2 px-2 text-center font-semibold text-slate-900 bg-amber-50/40">${item.tarikh}</td>
+          <td class="py-2 px-2 text-right font-mono font-bold text-slate-800">${formattedVal}</td>
+          <td class="py-2 px-2 text-center">${statusBadge}</td>
+          <td class="py-2 px-2 text-center">
+            <div class="inline-flex gap-1 justify-center">
+              <button onclick="openKewpa9ForAsset(${item._originalIndex})" class="p-1 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded transition" title="Isi Borang Pinjaman KEW.PA-9">
+                <i class="fa-solid fa-hand-holding-hand text-xs"></i>
+              </button>
+
+              <button onclick="editAsset(${item._originalIndex})" disabled class="p-1 bg-slate-200 text-slate-400 rounded cursor-not-allowed" title="Kemaskini">
+                <i class="fa-solid fa-pen-to-square text-xs"></i>
+              </button>
+              
+              <button onclick="deleteAsset(${item._originalIndex})" disabled class="p-1 bg-slate-200 text-slate-400 rounded cursor-not-allowed" title="Padam">
+                <i class="fa-solid fa-trash-can text-xs"></i>
+              </button>
+
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ================= FUNGSI BORANG DIGITAL & PENAMBAHAN ASET KEW.PA-9 =================
+    function renderKewpa9AssetRows() {
+      const container = document.getElementById("kewpa9AssetRowsContainer");
+      container.innerHTML = "";
+
+      kewpa9AssetItems.forEach((item, idx) => {
+        const rowDiv = document.createElement("div");
+        rowDiv.className = "p-2.5 rounded-lg border border-slate-200 bg-white grid grid-cols-1 sm:grid-cols-12 gap-2 items-center";
+
+        rowDiv.innerHTML = `
+          <div class="sm:col-span-1 text-center font-bold text-slate-500 text-xs">
+            #${idx + 1}
+          </div>
+          <div class="sm:col-span-4">
+            <input 
+              type="text" 
+              list="assetNumberList" 
+              value="${item.noAset}" 
+              onchange="onKewpa9AssetChange(${idx}, 'noAset', this.value)" 
+              placeholder="No. Siri Pendaftaran" 
+              required 
+              class="w-full p-1.5 border border-slate-300 rounded font-mono font-bold text-xs focus:ring-1 focus:ring-orange-500 focus:outline-none" 
+            />
+          </div>
+          <div class="sm:col-span-4">
+            <input 
+              type="text" 
+              value="${item.keteranganAset}" 
+              oninput="onKewpa9AssetChange(${idx}, 'keteranganAset', this.value)" 
+              placeholder="Keterangan / Nama Aset" 
+              required 
+              class="w-full p-1.5 border border-slate-300 rounded font-semibold text-xs focus:ring-1 focus:ring-orange-500 focus:outline-none" 
+            />
+          </div>
+          <div class="sm:col-span-2">
+            <input 
+              type="text" 
+              value="${item.catatan}" 
+              oninput="onKewpa9AssetChange(${idx}, 'catatan', this.value)" 
+              placeholder="Catatan" 
+              class="w-full p-1.5 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-orange-500 focus:outline-none" 
+            />
+          </div>
+          <div class="sm:col-span-1 text-center">
+            ${kewpa9AssetItems.length > 1 ? `
+              <button 
+                type="button" 
+                onclick="removeKewpa9AssetRow(${idx})" 
+                class="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded transition" 
+                title="Padam Aset Ini"
+              >
+                <i class="fa-solid fa-trash-can text-xs"></i>
+              </button>
+            ` : `<span class="text-slate-300 text-xs">-</span>`}
+          </div>
+        `;
+
+        container.appendChild(rowDiv);
+      });
+    }
+
+    function addKewpa9AssetRow() {
+      kewpa9AssetItems.push({ noAset: "", keteranganAset: "", catatan: "", pembekal: "" });
+      renderKewpa9AssetRows();
+    }
+
+    function removeKewpa9AssetRow(idx) {
+      if (kewpa9AssetItems.length > 1) {
+        kewpa9AssetItems.splice(idx, 1);
+        renderKewpa9AssetRows();
+      }
+    }
+
+    function onKewpa9AssetChange(idx, field, value) {
+      if (!kewpa9AssetItems[idx]) return;
+      kewpa9AssetItems[idx][field] = value;
+
+      if (field === 'noAset' && value) {
+        const matched = assetList.find(a => (a.noAset || "").trim().toLowerCase() === value.trim().toLowerCase());
+        if (matched) {
+          kewpa9AssetItems[idx].keteranganAset = matched.namaAset || "";
+          kewpa9AssetItems[idx].pembekal = matched.pembekal || "";
+
+          // Auto-isi nama pengeluar dari pembekal aset pertama
+          if (idx === 0 || !document.getElementById("k9NamaPengeluar").value) {
+            document.getElementById("k9NamaPengeluar").value = matched.pembekal || "Pegawai Stor / Aset";
+          }
+          renderKewpa9AssetRows();
+        }
+      }
+    }
+
+    function openKewpa9Modal() {
+      document.getElementById("kewpa9Form").reset();
+      
+      const randNo = "BBP-SP/K9/" + new Date().getFullYear() + "/" + Math.floor(100 + Math.random() * 900);
+      document.getElementById("k9NoPermohonan").value = randNo;
+      document.getElementById("k9NamaPengeluar").value = "";
+      document.getElementById("k9NamaPelulus").value = "Nama Pegawai";
+
+      kewpa9AssetItems = [{ noAset: "", keteranganAset: "", catatan: "", pembekal: "" }];
+      renderKewpa9AssetRows();
+
+      if (fpK9Pinjam) fpK9Pinjam.setDate(new Date(), true, "d/m/Y");
+      if (fpK9Jangka) fpK9Jangka.setDate(new Date(Date.now() + 3*24*60*60*1000), true, "d/m/Y");
+
+      document.getElementById("kewpa9Modal").classList.remove("hidden");
+    }
+
+    function openKewpa9ForAsset(idx) {
+      const asset = assetList[idx];
+      if (!asset) return;
+      openKewpa9Modal();
+
+      kewpa9AssetItems = [{
+        noAset: asset.noAset || "",
+        keteranganAset: asset.namaAset || "",
+        catatan: "Keadaan Baik",
+        pembekal: asset.pembekal || ""
+      }];
+      renderKewpa9AssetRows();
+
+      document.getElementById("k9NamaPengeluar").value = asset.pembekal || "Pegawai Stor / Aset";
+      document.getElementById("k9TempatDigunakan").value = "BBP";
+    }
+
+    function closeKewpa9Modal() {
+      document.getElementById("kewpa9Modal").classList.add("hidden");
+    }
+
+    async function handleKewpa9Submit(e) {
+      e.preventDefault();
+      const updateStatusVal = document.getElementById("k9UpdateStatus").value;
+
+      const btn = document.getElementById("btnSaveKewpa9");
+      const origText = btn.innerHTML;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...`;
+      btn.disabled = true;
+
+      try {
+        if (updateStatusVal === "Dipinjamkan") {
+          for (let item of kewpa9AssetItems) {
+            if (item.noAset) {
+              const matchedIdx = assetList.findIndex(a => (a.noAset || "").trim().toLowerCase() === item.noAset.trim().toLowerCase());
+              if (matchedIdx >= 0) {
+                assetList[matchedIdx].status = "Dipinjamkan";
+
+                await fetch(GAS_BACKEND_URL, {
+                  method: "POST",
+                  mode: "no-cors",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    action: "edit",
+                    index: matchedIdx,
+                    data: assetList[matchedIdx]
+                  })
+                });
+              }
+            }
+          }
+
+          localStorage.setItem("BOMBA_ASSETS_DATA_OFFICIAL", JSON.stringify(assetList));
+          renderTable();
+        }
+
+        alert(`Permohonan pinjaman (KEW.PA-9) bagi ${kewpa9AssetItems.length} aset berjaya disimpan!`);
+        closeKewpa9Modal();
+      } catch (err) {
+        console.error(err);
+        alert("Ralat semasa merekodkan permohonan.");
+      } finally {
+        btn.innerHTML = origText;
+        btn.disabled = false;
+      }
+    }
+
+    // CETAKAN KEW.PA-9 YANG 100% PERSIS SEPERTI DOKUMEN PEKELILING
+    function printOfficialKewpa9() {
+      const noPermohonan = document.getElementById("k9NoPermohonan").value || "..................";
+      const namaPemohon = document.getElementById("k9NamaPemohon").value || "";
+      const jawatanPemohon = document.getElementById("k9JawatanPemohon").value || "";
+      const bahagian = document.getElementById("k9Bahagian").value || "BBP Simpang Pulai";
+      const tujuan = document.getElementById("k9Tujuan").value || "";
+      const tempatDigunakan = document.getElementById("k9TempatDigunakan").value || "";
+      const namaPengeluar = document.getElementById("k9NamaPengeluar").value || "";
+
+      const tarikhPinjam = document.getElementById("k9TarikhPinjam").value || "";
+      const tarikhJangka = document.getElementById("k9TarikhJangkaPulang").value || "";
+      const kelulusan = document.getElementById("k9Kelulusan").value || "Lulus";
+
+      const namaPelulus = document.getElementById("k9NamaPelulus").value || "";
+      const jawatanPelulus = document.getElementById("k9JawatanPelulus").value || "Ketua Balai";
+
+      document.getElementById("k9pNoPermohonan").textContent = noPermohonan;
+      document.getElementById("k9pNamaPemohon").textContent = namaPemohon;
+      document.getElementById("k9pJawatan").textContent = jawatanPemohon;
+      document.getElementById("k9pBahagian").textContent = bahagian;
+      document.getElementById("k9pTujuan").textContent = tujuan;
+      document.getElementById("k9pTempatDigunakan").textContent = tempatDigunakan;
+      document.getElementById("k9pNamaPengeluar").textContent = namaPengeluar;
+
+      const printTableBody = document.getElementById("k9pPrintTableBody");
+      printTableBody.innerHTML = "";
+
+      // Minima 4 baris rasmi
+      const totalRowsToPrint = Math.max(kewpa9AssetItems.length, 4);
+
+      for (let i = 0; i < totalRowsToPrint; i++) {
+        const item = kewpa9AssetItems[i] || { noAset: "", keteranganAset: "", catatan: "" };
+        const isFilled = (item.noAset || item.keteranganAset);
+
+        const tr = document.createElement("tr");
+        tr.style.height = "52px";
+        tr.style.minHeight = "52px";
+
+        tr.innerHTML = `
+          <td style="border: 1px solid #000; padding: 6px 2px; font-weight: bold;">${i + 1}</td>
+          <td style="border: 1px solid #000; padding: 6px 4px; font-family: monospace; font-weight: bold; text-align: left;">
+            ${isFilled ? item.noAset : ""}
+          </td>
+          <td style="border: 1px solid #000; padding: 6px 6px; text-align: left; font-weight: 600;">
+            ${isFilled ? item.keteranganAset : ""}
+          </td>
+          <td style="border: 1px solid #000; padding: 6px 2px;">
+            ${isFilled ? tarikhPinjam : ""}
+          </td>
+          <td style="border: 1px solid #000; padding: 6px 2px;">
+            ${isFilled ? tarikhJangka : ""}
+          </td>
+          <td style="border: 1px solid #000; padding: 6px 2px; font-weight: bold;">
+            ${isFilled ? kelulusan : ""}
+          </td>
+          <td style="border: 1px solid #000; padding: 6px 2px;"></td>
+          <td style="border: 1px solid #000; padding: 6px 2px;"></td>
+          <td style="border: 1px solid #000; padding: 6px 3px;">
+            ${isFilled ? (item.catatan || "") : ""}
+          </td>
+        `;
+
+        printTableBody.appendChild(tr);
+      }
+
+      document.getElementById("k9pSignNamaPeminjam").textContent = namaPemohon;
+      document.getElementById("k9pSignJawatanPeminjam").textContent = jawatanPemohon;
+      document.getElementById("k9pSignTarikhPeminjam").textContent = tarikhPinjam;
+
+      document.getElementById("k9pSignNamaPelulus").textContent = namaPelulus;
+      document.getElementById("k9pSignJawatanPelulus").textContent = jawatanPelulus;
+      document.getElementById("k9pSignTarikhPelulus").textContent = tarikhPinjam;
+
+      // Kunci mod cetakan hanya untuk KEW.PA-9 sahaja
+      document.body.classList.remove("printing-report");
+      document.body.classList.add("printing-kewpa9");
+
+      setTimeout(() => {
+        window.print();
+        document.body.classList.remove("printing-kewpa9");
+      }, 300);
+    }
+
+    // Modal Pendaftaran Asal Aset
+    function openAssetModal(mode = 'add') {
+      const modal = document.getElementById("assetModal");
+      const title = document.getElementById("modalTitle");
+      const form = document.getElementById("assetForm");
+
+      if (mode === 'add') {
+        title.innerHTML = `<i class="fa-solid fa-file-circle-plus text-red-500"></i> Daftar Aset Baru`;
+        form.reset();
+        document.getElementById("editIndex").value = "-1";
+        document.getElementById("formBil").value = (assetList.length + 1).toString();
+        document.getElementById("formPembekal").value = "";
+        document.getElementById("formStatus").value = "Baik";
+        if (fpTarikh) fpTarikh.setDate(new Date(), true, "d/m/Y");
+      }
+      modal.classList.remove("hidden");
+    }
+
+    function closeAssetModal() {
+      document.getElementById("assetModal").classList.add("hidden");
+    }
+
+    function editAsset(idx) {
+      const asset = assetList[idx];
+      if (!asset) return;
+
+      document.getElementById("modalTitle").innerHTML = `<i class="fa-solid fa-file-pen text-amber-500"></i> Kemaskini Data Aset`;
+      document.getElementById("editIndex").value = idx;
+      document.getElementById("formBil").value = asset.bil || (idx + 1).toString();
+      document.getElementById("formJenis").value = mapNormalizedJenisAset(asset.jenis);
+      document.getElementById("formNamaAset").value = asset.namaAset || "";
+      document.getElementById("formKegunaan").value = asset.kegunaan;
+      document.getElementById("formNoAset").value = asset.noAset;
+      document.getElementById("formPembekal").value = asset.pembekal || "";
+      
+      const cleanDate = normalizeDateToDDMMYYYY(asset.tarikh);
+      document.getElementById("formTarikh").value = cleanDate;
+      if (fpTarikh) {
+        fpTarikh.setDate(cleanDate, true, "d/m/Y");
+      }
+
+      document.getElementById("formNilai").value = asset.nilai;
+      document.getElementById("formStatus").value = asset.status || "Baik";
+
+      document.getElementById("assetModal").classList.remove("hidden");
+    }
+
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+      const editIdx = parseInt(document.getElementById("editIndex").value);
+
+      const rawTarikh = document.getElementById("formTarikh").value.trim();
+      const standardizedTarikh = normalizeDateToDDMMYYYY(rawTarikh);
+
+      const payload = {
+        bil: cleanText(document.getElementById("formBil").value, (assetList.length + 1).toString()),
+        jenis: document.getElementById("formJenis").value,
+        namaAset: cleanText(document.getElementById("formNamaAset").value),
+        kegunaan: document.getElementById("formKegunaan").value,
+        noAset: cleanText(document.getElementById("formNoAset").value),
+        pembekal: cleanText(document.getElementById("formPembekal").value),
+        tarikh: standardizedTarikh,
+        nilai: cleanCurrency(document.getElementById("formNilai").value),
+        status: document.getElementById("formStatus").value
+      };
+
+      const btn = document.getElementById("btnSaveSubmit");
+      const originalText = btn.innerHTML;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...`;
+      btn.disabled = true;
+
+      try {
+        await fetch(GAS_BACKEND_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: editIdx >= 0 ? "edit" : "add",
+            index: editIdx,
+            data: payload
+          })
+        });
+
+        if (editIdx >= 0) {
+          assetList[editIdx] = payload;
+        } else {
+          assetList.unshift(payload);
+        }
+
+        localStorage.setItem("BOMBA_ASSETS_DATA_OFFICIAL", JSON.stringify(assetList));
+        updateDatalistAset();
+        renderTable();
+        closeAssetModal();
+        alert("Maklumat aset berjaya disimpan!");
+      } catch (err) {
+        console.error(err);
+        alert("Peringatan: Gagal menyambung ke pangkalan data.");
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    async function deleteAsset(idx) {
+      const asset = assetList[idx];
+      if (!asset) return;
+
+      if (confirm(`Adakah anda pasti ingin memadamkan aset ini?\n\nNama: ${asset.namaAset}\nNo Aset: ${asset.noAset}`)) {
+        try {
+          await fetch(GAS_BACKEND_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "delete",
+              noAset: asset.noAset
+            })
+          });
+
+          assetList.splice(idx, 1);
+          localStorage.setItem("BOMBA_ASSETS_DATA_OFFICIAL", JSON.stringify(assetList));
+          updateDatalistAset();
+          renderTable();
+          alert("Rekod berjaya dipadam!");
+        } catch (err) {
+          alert("Gagal menghubungi Google Apps Script.");
+        }
+      }
+    }
+
+    function openPdfModal() {
+      document.getElementById("pdfModal").classList.remove("hidden");
+    }
+    function closePdfModal() {
+      document.getElementById("pdfModal").classList.add("hidden");
+    }
+
+    // Cetakan Laporan Bulanan (A4 Landscape)
+    function generateBrowserPrintPdf() {
+      const month = document.getElementById("pdfMonth").value;
+      const year = document.getElementById("pdfYear").value;
+      const category = document.getElementById("pdfCategory").value;
+
+      const filteredReport = assetList.filter(item => {
+        let matchDate = true;
+        const cleanDate = normalizeDateToDDMMYYYY(item.tarikh);
+        if (cleanDate && cleanDate.includes("/")) {
+          const parts = cleanDate.split("/");
+          const itemM = parts[1];
+          const itemY = parts[2];
+          if (month !== "all" && itemM !== month) matchDate = false;
+          if (year !== "all" && itemY !== year) matchDate = false;
+        }
+        const matchCat = (category === "all") || (item.jenis === category);
+        return matchDate && matchCat;
+      });
+
+      const monthsName = { "01":"Januari", "02":"Februari", "03":"Mac", "04":"April", "05":"Mei", "06":"Jun", "07":"Julai", "08":"Ogos", "09":"September", "10":"Oktober", "11":"November", "12":"Disember" };
+      let periodStr = (month === "all" ? "Semua Bulan" : monthsName[month]) + " " + (year === "all" ? "Semua Tahun" : year);
+
+      document.getElementById("printDateSpan").textContent = new Date().toLocaleDateString('ms-MY');
+      document.getElementById("printPeriodSpan").textContent = periodStr;
+
+      let pTotal = filteredReport.length;
+      let pAlihModal = 0, pModalABR = 0, pTakAlih = 0, pAksesori = 0, pNilai = 0;
+      filteredReport.forEach(it => {
+        if (it.jenis === "Aset Alih (Harta Modal)") pAlihModal++;
+        else if (it.jenis === "Harta Modal (ABR)") pModalABR++;
+        else if (it.jenis === "Aset tak Alih") pTakAlih++;
+        else if (it.jenis === "Aksesori") pAksesori++;
+        pNilai += parseFloat(it.nilai) || 0;
+      });
+
+      document.getElementById("printStatTotal").textContent = pTotal;
+      document.getElementById("printStatAlihModal").textContent = pAlihModal;
+      document.getElementById("printStatModalABR").textContent = pModalABR;
+      document.getElementById("printStatTakAlih").textContent = pTakAlih;
+      document.getElementById("printStatAksesori").textContent = pAksesori;
+      document.getElementById("printStatNilai").textContent = "RM " + pNilai.toLocaleString('ms-MY', { minimumFractionDigits: 2 });
+
+      const printTableBody = document.getElementById("printTableBody");
+      printTableBody.innerHTML = "";
+
+      if (filteredReport.length === 0) {
+        printTableBody.innerHTML = `<tr><td colspan="9" style="padding: 12px; text-align: center; font-weight: bold; color: #6b7280; border: 1px solid #000;">Tiada rekod aset ditemui bagi kriteria laporan ini.</td></tr>`;
+      } else {
+        filteredReport.forEach((row, idx) => {
+          const valFormatted = (parseFloat(row.nilai) || 0).toLocaleString('ms-MY', { minimumFractionDigits: 2 });
+          const bg = (idx % 2 === 0) ? "#ffffff" : "#f9fafb";
+
+          const tr = document.createElement("tr");
+          tr.style.backgroundColor = bg;
+          tr.innerHTML = `
+            <td style="border: 1px solid #000; padding: 5px 2px; text-align: center; font-weight: bold;">${idx + 1}</td>
+            <td style="border: 1px solid #000; padding: 5px 3px; font-weight: 600;">${row.jenis}</td>
+            <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold; text-align: left;">${row.namaAset || '-'}</td>
+            <td style="border: 1px solid #000; padding: 5px 3px; text-align: center;">${row.kegunaan}</td>
+            <td style="border: 1px solid #000; padding: 5px 3px; font-family: monospace; font-weight: 600;">${row.noAset}</td>
+            <td style="border: 1px solid #000; padding: 5px 3px;">${row.pembekal}</td>
+            <td style="border: 1px solid #000; padding: 5px 2px; text-align: center; font-weight: bold;">${normalizeDateToDDMMYYYY(row.tarikh)}</td>
+            <td style="border: 1px solid #000; padding: 5px 3px; text-align: right; font-family: monospace; font-weight: bold;">${valFormatted}</td>
+            <td style="border: 1px solid #000; padding: 5px 2px; text-align: center; font-weight: 600;">${row.status}</td>
+          `;
+          printTableBody.appendChild(tr);
+        });
+      }
+
+      closePdfModal();
+
+      document.body.classList.remove("printing-kewpa9");
+      document.body.classList.add("printing-report");
+
+      setTimeout(() => {
+        window.print();
+        document.body.classList.remove("printing-report");
+      }, 300);
+    }
+  </script>
+  <footer class="bg-slate-900 text-slate-400 text-xs py-3 text-center border-t border-slate-800 no-print">
+    <p>&copy; <span id="currentYear"></span> BBP Simpang Pulai. Hak Cipta Terpelihara.</p>
+  </footer>
+</body>
+</html>
